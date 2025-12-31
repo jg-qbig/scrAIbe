@@ -1,0 +1,8 @@
+# env variables
+.env
+
+# python venv
+.venv/
+
+# direnv
+.direnv/
