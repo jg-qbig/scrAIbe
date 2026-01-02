@@ -1,1 +1,3 @@
+WORKING_DIR = "./calculator"
+MAX_ITERATIONS = 10
 MAX_CHARS = 10_000

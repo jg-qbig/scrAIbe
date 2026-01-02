@@ -1,12 +1,14 @@
 import argparse
 import os
+import sys
 
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+from config import MAX_ITERATIONS
 from prompts import system_prompt
-from functions.call_function import available_functions
+from functions.call_function import available_functions, call_function
 
 
 def main():
@@ -25,7 +27,14 @@ def main():
     if args.verbose:
         print(f"User prompt: {args.user_prompt}")
 
-    generate_response(client, messages, args.verbose)
+    for _ in range(MAX_ITERATIONS):
+        response = generate_response(client, messages, args.verbose)
+        if response:
+            print(f"Final response:\n{response}")
+            return
+
+    print(f"Agent exceeded maximum iterations ({MAX_ITERATIONS})")
+    sys.exit(1)
 
 
 def generate_response(client, messages, verbose):
@@ -44,10 +53,28 @@ def generate_response(client, messages, verbose):
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
 
-    if response.functions_calls:
-        for call in response.function_calls:
-            print(f"Calling function: {call.name}({call.args})")
-    print(f"Response:\n{response.text}")
+    if response.candidates:
+        for candidate in response.candidates:
+            if candidate:
+                messages.append(candidate.content)
+
+    if not response.function_calls:
+        return response.text
+
+    function_results = []
+    for call in response.function_calls:
+        call_result = call_function(call)
+        if (
+            not call_result.parts
+            or not call_result.parts[0].function_response
+            or not call_result.parts[0].function_response.response
+        ):
+            raise RuntimeError(f"Empty function response for {call.name}")
+        if verbose:
+            print(f"-> {call_result.parts[0].function_response.response}")
+        function_results.append(call_result.parts[0])
+
+    messages.append(types.Content(role="user", parts=function_results))
 
 
 if __name__ == "__main__":
