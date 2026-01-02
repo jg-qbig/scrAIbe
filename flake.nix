@@ -29,6 +29,13 @@
             python312
           ];
           shellHook = ''
+            # Initialize uv project if needed
+            if [ ! -f "pyproject.toml" ]; then
+              echo "Initializing uv project..."
+              uv init
+            fi
+
+            # Create python virtual env if needed
             if [ ! -d ".venv" ]; then
               echo "Creating Python virtual environment with uv..."
               uv venv
